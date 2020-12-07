@@ -4,6 +4,14 @@ import numpy as np
 import cv2
 import time
 from Image import *
+import serial
+
+WIDTH = 320
+MARGIN = 10
+
+ser = serial.Serial("/dev/serial/by-id/usb-Arduino_Srl_Arduino_Uno_754393137373514101B0-if00", 9600)
+if ser is None:
+  ser = serial.Serial("/dev/ttyACM1", 9600)
 
 # 그림을 slices 의 수만큼 조각낸다
 def SlicePart(im, images, slices):
@@ -15,8 +23,8 @@ def SlicePart(im, images, slices):
         part = sl*i
         crop_img = im[part:part+sl, 0:width]
         #조각난 이미지 crop_img를 images[]에 저장
-	images[i].image = crop_img
-	#Image.py에서 윤곽선을 그리고 무게중심을 표시
+        images[i].image = crop_img
+        #Image.py에서 윤곽선을 그리고 무게중심을 표시
         cPoint = images[i].Process()
         points.append(cPoint)
     return points
@@ -31,6 +39,84 @@ def RepackImages(images):
             img = np.concatenate((img, images[i].image), axis=0)
             
     return img
+
+ # 진행 방향 계산
+def Move(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10):
+  xs = [x1, x2, x3, x4, x5, x6, x7, x8, x9, x10] # all points
+  valid_xs = []                                  # all valid points
+  dif_xs = []                                    # all differents
+  sum = 0                                        # sum of differents
+  dif_avg = 0                                    # average of differents
+
+  # populate only valid points
+  for i in xs:
+    if i >= WIDTH - MARGIN or i <= MARGIN:
+      continue
+    valid_xs.append(i)
+
+  # TODO: handle exception: not enough valid points
+  if len(valid_xs) == 0:
+    dif_avg = 1000
+  # calculate different between every point
+  else:
+    prev = valid_xs[0]
+    for now in valid_xs:        
+      if now != valid_xs[0]:
+        dif = prev - now
+        dif_xs.append(dif)
+        prev = now
+
+  
+  # calculate sum and average
+  for j in dif_xs:
+    sum += j
+  
+  if len(dif_xs) == 0:
+    dif_avg = 1000
+  else:
+    dif_avg = sum / len(dif_xs)
+
+  print(dif_xs)
+  print(str(sum) + '\n')
+  print(str(dif_avg) + '\n')
+  
+  # make a command
+
+  # 직진
+  if dif_avg <= 6 and dif_avg >= -6:
+    print("On Track! Keep going!! GOGOGO")
+    direction = 'T'
+
+  # 좌회전
+  elif dif_avg < -6 and dif_avg >= -30:
+    print("Turn Left!")
+    direction = 'l'
+
+  # 더 격한 좌회전
+  elif dif_avg < -30:
+    print("Turn Left!!!!!!!!!꺅!!!")
+    direction = 'L'
+
+  # 우회전
+  elif dif_avg > 6 and dif_avg <= 30:
+    print("Turn Right!")
+    direction = 'r'
+
+  # 더 격한 우회전
+  elif dif_avg > 30 and dif_avg < 1000:
+    print("Turn Right!!!!!!!!홋!")
+    direction = 'R'
+
+  # 후진
+  else: 
+    print("Back!")
+    direction = 'B'
+  
+  # cmd = ("%c\n" % (direction)).encode('ascii')
+  ser.write(direction.encode())
+  print("send")
+  read_serial = ser.readline()
+  print("<<< %s" % (read_serial))
 
 def Center(moments):
     if moments["m00"] == 0:
@@ -57,3 +143,4 @@ def RemoveBackground(image, b):
         return image
     #////////////////COLOR SELECTION/////////////
     
+
