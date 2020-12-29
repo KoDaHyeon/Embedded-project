@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import cv2
 
@@ -10,15 +9,14 @@ class Image:
         self.MainContour = None
         
     def Process(self):
-	  #이미지를 흑백으로 변환한 뒤 Threshold 값을 기준으로 0 또는 1로 값을 정한다
+	    # 이미지를 흑백으로 변환한 뒤 Threshold 값을 기준으로 0 또는 1로 값을 정한다
         imgray = cv2.cvtColor(self.image,cv2.COLOR_BGR2GRAY) #Convert to Gray Scale
-        
         self.contourCenterX = -1000
 
-        #Gaussian blur
+        # Gaussian blur
         blur = cv2.GaussianBlur(imgray,(5,5),0)
         ret, thresh = cv2.threshold(blur,100,255,cv2.THRESH_BINARY_INV) #Get Threshold
-        self.contours, _ = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE) #Get contour
+        self.contours, _ = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE) 		  # Get contour
         self.prev_MC = self.MainContour
 
         self.height, self.width  = self.image.shape[:2]
@@ -28,11 +26,6 @@ class Image:
 
         if self.contours:
             self.MainContour = max(self.contours, key=cv2.contourArea)
-        
-            #self.height, self.width  = self.image.shape[:2]
-
-            #self.middleX = int(self.width/2) #Get X coordenate of the middle point
-            #self.middleY = int(self.height/2) #Get Y coordenate of the middle point
             
             self.prev_cX = self.contourCenterX
             if self.getContourCenter(self.MainContour) != 0:
@@ -48,12 +41,11 @@ class Image:
             cv2.drawContours(self.image,self.MainContour,-1,(0,255,0),3) #Draw Contour GREEN
             cv2.circle(self.image, (self.contourCenterX, self.middleY), 7, (255,255,255), -1) #Draw dX circle WHITE
             cv2.circle(self.image, (self.middleX, self.middleY), 3, (0,0,255), -1) #Draw middle circle RED
-            
-            #font = cv2.FONT_HERSHEY_SIMPLEX
-            #cv2.putText(self.image,str(self.middleX-self.contourCenterX),(self.contourCenterX+20, self.middleY), font, 1,(200,0,200),2,cv2.CV_AA)
-            #cv2.putText(self.image,"Weight:%.3f"%self.getContourExtent(self.MainContour),(self.contourCenterX+20, self.middleY+35), font, 0.5,(200,0,200),1,cv2.CV_AA)
-        return [self.contourCenterX, self.middleY]
 
+        return [self.contourCenterX, self.middleY]
+	
+    
+    # 무게중심점을 구하는 함수
     def getContourCenter(self, contour):
         M = cv2.moments(contour)
         
@@ -64,14 +56,15 @@ class Image:
         y = int(M["m01"]/M["m00"])
         
         return [x,y]
-        
+    
+    # 윤곽선 범위를 구하는 함수
     def getContourExtent(self, contour):
         area = cv2.contourArea(contour)
         x,y,w,h = cv2.boundingRect(contour)
         rect_area = w*h
         if rect_area > 0:
             return (float(area)/rect_area)
-            
+     
     def Aprox(self, a, b, error):
         if abs(a - b) < error:
             return True
