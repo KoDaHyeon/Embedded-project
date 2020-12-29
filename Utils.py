@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import numpy as np
 import cv2
 import time
@@ -11,7 +9,7 @@ MARGIN = 10
 
 ser = serial.Serial("/dev/serial/by-id/usb-Arduino_Srl_Arduino_Uno_754393137373514101B0-if00", 9600)
 
-# 그림을 slices 의 수만큼 조각낸다
+# 이미지(im)를 slices 수만큼 조각내서 images 배열에 담는 함수
 def SlicePart(im, images, slices):
     height, width = im.shape[:2]
     sl = int(height/slices)
@@ -20,14 +18,15 @@ def SlicePart(im, images, slices):
     for i in range(slices):
         part = sl*i
         crop_img = im[part:part+sl, 0:width]
-        #조각난 이미지 crop_img를 images[]에 저장
+        # 조각난 이미지 crop_img를 images[]에 저장
         images[i].image = crop_img
-        #Image.py에서 윤곽선을 그리고 무게중심을 표시
+        # Image.py에서 윤곽선을 그리고 무게중심을 표시
         cPoint = images[i].Process()
         points.append(cPoint)
+    # 무게중심점들을 리턴
     return points
 
-#조각난 이미지를 다시 합친다
+# images 배열에 있는 이미지들을 다시 합쳐 리턴하는 함수
 def RepackImages(images):
     img = images[0].image
     for i in range(len(images)):
@@ -38,39 +37,53 @@ def RepackImages(images):
             
     return img
 
- # 진행 방향 계산
+# 진행 방향 계산
 def Move(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10):
-  xs = [x4, x5, x6, x7, x8, x9, x10] # all points
-  valid_xs = []                                  # all valid points
-  dif_xs = []                                    # all differents
-  sum = 0                                        # sum of differents
-  dif_avg = 0                                    # average of differents
-  valid_xs_avg = 0
-  result = 0
+  xs = [x4, x5, x6, x7, x8, x9, x10] # RC카에서 가까운 부분을 중점적으로 고려
+  valid_xs = []  # 일정 범위 이내의 점들
+  dif_xs = [] # valid_xs 간의 차이값
+  sum = 0  # dif_xs 들의 합
+  dif_avg = 0  # dif_xs들의 평균
+  valid_xs_avg = 0 # valid_xs들의 평균
+  result = 0 # valid_xs_avg, dif_avg를 일정 비율로 더한 값
 
-  # populate only valid points
+  # 일정 범위 이내의 점만 고려함
   for i in xs:
     if i >= WIDTH - MARGIN or i <= MARGIN:
       continue
     valid_xs.append(i)
     valid_xs_avg += i
 
-  # not enough valid points
+  # 일정 범위 이내의 점이 하나도 없는 경우, dif_avg 값을 1000으로 줘서 back하도록 함
   if len(valid_xs) == 0:
     dif_avg = 1000
-  # calculate different between every point
+    
+  # 일정 범위 이내의 점들(valid_xs)간의 차이를 계산
   else:
     valid_xs_avg /= len(valid_xs)
     
-    prev = valid_xs[0]
-    for now in valid_xs:        
-      if now != valid_xs[0]:
-        dif = prev - now
-        dif_xs.append(dif)
-        prev = now
+    # valid_xs들이 모두 한쪽으로 치우쳐졌을 때 오차 보정
+    if valid_xs_avg > 0 and valid_xs_avg <= 40:
+      for now in valid_xs:
+        dif_xs.append(-50)
+    elif valid_xs_avg > 40 and valid_xs_avg <= 80:
+      for now in valid_xs:
+        dif_xs.append(-20)
+    elif valid_xs_avg > 280 and valid_xs_avg <= 320:
+       for now in valid_xs:
+        dif_xs.append(50)
+    elif valid_xs_avg > 240 and valid_xs_avg <= 280:
+      for now in valid_xs:
+        dif_xs.append(20)
+    else:
+      prev = valid_xs[0]
+      for now in valid_xs:        
+        if now != valid_xs[0]:
+          dif = prev - now
+          dif_xs.append(dif)
+          prev = now
      
-  
-  # calculate sum and average
+  # dif_xs들의 합(sum), 평균(dif_avg)을 계산
   for j in dif_xs:
     sum += j
   
@@ -79,9 +92,10 @@ def Move(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10):
   else:
     dif_avg = sum / len(dif_xs)
 
-  
+
   result = valid_xs_avg + dif_avg
   
+  # for debugging
   print(str(valid_xs_avg) + '\n')
   print(str(dif_avg) +'\n')
   print(str(result) + '\n')
@@ -90,12 +104,12 @@ def Move(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10):
   # make a command
 
   #forward
-  if result >= 90 and result <195:
+  if result >= 100 and result <230:
     print("On Track!!!! Keep going~~~!!!>__<")
     direction = 'T'
     
   #left  
-  elif result >= 50 and result < 90:
+  elif result >= 50 and result < 100:
     print("Turn Left!!@__@")
     direction = 'l'
   
@@ -105,12 +119,12 @@ def Move(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10):
     direction = 'L'
     
   #right
-  elif result >=195 and result <250:
+  elif result >=230 and result <300:
     print("Turn Right!!^3^")
     direction = 'r'
       
   #strong right
-  elif result >=250 and result <1000:
+  elif result >=300 and result <1000:
     print("Turn Right!!!!!!!!!!!!^ 3^")
     direction = 'R'
       
@@ -119,33 +133,10 @@ def Move(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10):
     print("Backkkkkkkkkkk!^&*%*%!&@^(&#!@_&@!*@%*%")
     direction = 'B'
 
-  # cmd = ("%c\n" % (direction)).encode('ascii')
+  # serial.ino에 direction값을 전송
   ser.write(direction.encode())
   print("send")
+
+  # serial.ino에서 ACK를 수신
   read_serial = ser.readline()
   print("<<< %s" % (read_serial))
-
-def Center(moments):
-    if moments["m00"] == 0:
-        return 0
-        
-    x = int(moments["m10"]/moments["m00"])
-    y = int(moments["m01"]/moments["m00"])
-
-    return x, y
-    
-def RemoveBackground(image, b):
-    up = 100
-    # create NumPy arrays from the boundaries
-    lower = np.array([0, 0, 0], dtype = "uint8")
-    upper = np.array([up, up, up], dtype = "uint8")
-    #----------------COLOR SELECTION-------------- (Remove any area that is whiter than 'upper')
-    if b == True:
-        mask = cv2.inRange(image, lower, upper)
-        image = cv2.bitwise_and(image, image, mask = mask)
-        image = cv2.bitwise_not(image, image, mask = mask)
-        image = (255-image)
-        return image
-    else:
-        return image
-    
