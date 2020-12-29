@@ -7,6 +7,7 @@ int speed = 255;
 // initial command
 int command = 0;
 
+// main.py로부터 받아온 direction이 유효한 값인지 확인하는 함수
 bool is_valid_direction(char direction)
 {
   switch (direction)
@@ -35,7 +36,6 @@ void loop()
 {
   if (Serial.available())
   {
-    //int state = Serial.parseInt();
     char direction;
 
     do
@@ -46,52 +46,52 @@ void loop()
 
     switch (direction)
     {
+      //forward
       case 'T':
         analogWrite(motorA1, speed);
         analogWrite(motorA2, 0);
         analogWrite(motorB1, speed);
         analogWrite(motorB2, 0);
-        //Serial.println("On Track! Keep going!! GOGOGO");
         break;
 
+      //left
       case 'l' :
         analogWrite(motorA1, 50);
         analogWrite(motorA2, 0);
         analogWrite(motorB1, speed);
         analogWrite(motorB2, 0);
-        //Serial.println("Turn Left!");
         break;
 
+      //strong left
       case 'L':
         analogWrite(motorA1, 0);
         analogWrite(motorA2, 200);
         analogWrite(motorB1, speed);
         analogWrite(motorB2, 0);
-        //Serial.println("Turn Left!!!!!!!!!");
         break;
 
+      //right
       case 'r':
         analogWrite(motorA1, speed);
         analogWrite(motorA2, 0);
         analogWrite(motorB1, 50);
         analogWrite(motorB2, 0);
-        //Serial.println("Turn Right!");
         break;
 
+      //strong right
       case 'R':
         analogWrite(motorA1, speed);
         analogWrite(motorA2, 0);
         analogWrite(motorB1, 0);
         analogWrite(motorB2, 200);
-        //Serial.println("Turn Right!!!!!!!");
         break;
 
+      //back
       case 'B' :
         analogWrite(motorA1, 0);
         analogWrite(motorA2, speed);
         analogWrite(motorB1, 0);
         analogWrite(motorB2, speed);
-        //Serial.println("Back!");
         break;
     }
     if(direction == 'R' || direction == 'L'){
@@ -107,6 +107,7 @@ void loop()
     analogWrite(motorA2, 0);
     analogWrite(motorB1, 0);
     analogWrite(motorB2, 0);
+    //main.py에게 ACK 전송
     Serial.write("ACK\n");
     delay(50);
   }
