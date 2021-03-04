@@ -55,5 +55,6 @@ for frame in camera.capture_continuous (rawCapture, format = "bgr", use_video_po
       print("Stopped!")
       break
 
+	
 # Closes all the frames
 cv2.destroyAllWindows()
